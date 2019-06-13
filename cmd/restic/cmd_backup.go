@@ -98,6 +98,7 @@ type BackupOptions struct {
 	WithAtime               bool
 	IgnoreInode             bool
 	UseFsSnapshot           bool
+	DryRun                  bool
 }
 
 var backupOptions BackupOptions
@@ -134,6 +135,7 @@ func init() {
 	if runtime.GOOS == "windows" {
 		f.BoolVar(&backupOptions.UseFsSnapshot, "use-fs-snapshot", false, "use filesystem snapshot where possible (currently only Windows VSS)")
 	}
+	f.BoolVarP(&backupOptions.DryRun, "dry-run", "n", false, "do not write anything, just print what would be done")
 }
 
 // filterExisting returns a slice of all existing items, or an error if no
@@ -460,6 +462,7 @@ func runBackup(opts BackupOptions, gopts GlobalOptions, term *termstatus.Termina
 		Run(ctx context.Context) error
 		Error(item string, fi os.FileInfo, err error) error
 		Finish(snapshotID restic.ID)
+		SetDryRun()
 
 		// ui.StdioWrapper
 		Stdout() io.WriteCloser
@@ -477,6 +480,11 @@ func runBackup(opts BackupOptions, gopts GlobalOptions, term *termstatus.Termina
 		p = json.NewBackup(term, gopts.verbosity)
 	} else {
 		p = ui.NewBackup(term, gopts.verbosity)
+	}
+
+	if opts.DryRun {
+		repo.SetDryRun()
+		p.SetDryRun()
 	}
 
 	// use the terminal for stdout/stderr
@@ -641,7 +649,7 @@ func runBackup(opts BackupOptions, gopts GlobalOptions, term *termstatus.Termina
 
 	// Report finished execution
 	p.Finish(id)
-	if !gopts.JSON {
+	if !gopts.JSON && !opts.DryRun {
 		p.P("snapshot %s saved\n", id.Str())
 	}
 	if !success {
