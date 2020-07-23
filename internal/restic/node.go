@@ -282,21 +282,10 @@ func (node Node) createFileAt(ctx context.Context, path string, repo Repository)
 func (node Node) writeNodeContent(ctx context.Context, repo Repository, f *os.File) error {
 	var buf []byte
 	for _, id := range node.Content {
-		size, found := repo.LookupBlobSize(id, DataBlob)
-		if !found {
-			return errors.Errorf("id %v not found in repository", id)
-		}
-
-		buf = buf[:cap(buf)]
-		if len(buf) < CiphertextLength(int(size)) {
-			buf = NewBlobBuffer(int(size))
-		}
-
-		n, err := repo.LoadBlob(ctx, DataBlob, id, buf)
+		buf, err := repo.LoadBlob(ctx, DataBlob, id, buf)
 		if err != nil {
 			return err
 		}
-		buf = buf[:n]
 
 		_, err = f.Write(buf)
 		if err != nil {
@@ -333,7 +322,7 @@ func (node *Node) createFifoAt(path string) error {
 }
 
 // FixTime returns a time.Time which can safely be used to marshal as JSON. If
-// the timestamp is ealier that year zero, the year is set to zero. In the same
+// the timestamp is earlier than year zero, the year is set to zero. In the same
 // way, if the year is larger than 9999, the year is set to 9999. Other than
 // the year nothing is changed.
 func FixTime(t time.Time) time.Time {

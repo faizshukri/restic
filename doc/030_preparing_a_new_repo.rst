@@ -54,6 +54,13 @@ command and enter the same password twice:
    Remembering your password is important! If you lose it, you won't be
    able to access data stored in the repository.
 
+.. warning::
+
+   On Linux, storing the backup repository on a CIFS (SMB) share is not
+   recommended due to compatibility issues. Either use another backend
+   or set the environment variable `GODEBUG` to `asyncpreemptoff=1`.
+   Refer to GitHub issue #2659 for further explanations.
+
 SFTP
 ****
 
@@ -78,15 +85,29 @@ You can also specify a relative (read: no slash (``/``) character at the
 beginning) directory, in this case the dir is relative to the remote
 user's home directory.
 
+Also, if the SFTP server is enforcing domain-confined users, you can
+specify the user this way: ``user@domain@host``.
+
 .. note:: Please be aware that sftp servers do not expand the tilde character
           (``~``) normally used as an alias for a user's home directory. If you
           want to specify a path relative to the user's home directory, pass a
           relative path to the sftp backend.
 
-The backend config string does not allow specifying a port. If you need
-to contact an sftp server on a different port, you can create an entry
-in the ``ssh`` file, usually located in your user's home directory at
-``~/.ssh/config`` or in ``/etc/ssh/ssh_config``:
+If you need to specify a port number or IPv6 address, you'll need to use
+URL syntax. E.g., the repository ``/srv/restic-repo`` on ``[::1]`` (localhost)
+at port 2222 with username ``user`` can be specified as
+
+::
+
+    sftp://user@[::1]:2222//srv/restic-repo
+
+Note the double slash: the first slash separates the connection settings from
+the path, while the second is the start of the path. To specify a relative
+path, use one slash.
+
+Alternatively, you can create an entry in the ``ssh`` configuration file,
+usually located in your home directory at ``~/.ssh/config`` or in
+``/etc/ssh/ssh_config``:
 
 ::
 
@@ -235,7 +256,7 @@ credentials of your Minio Server.
     $ export AWS_ACCESS_KEY_ID=<YOUR-MINIO-ACCESS-KEY-ID>
     $ export AWS_SECRET_ACCESS_KEY= <YOUR-MINIO-SECRET-ACCESS-KEY>
 
-Now you can easily initialize restic to use Minio server as backend with
+Now you can easily initialize restic to use Minio server as a backend with
 this command.
 
 .. code-block:: console
@@ -244,6 +265,35 @@ this command.
     enter password for new backend:
     enter password again:
     created restic backend 6ad29560f5 at s3:http://localhost:9000/restic1
+    Please note that knowledge of your password is required to access
+    the repository. Losing your password means that your data is irrecoverably lost.
+
+Wasabi
+************
+
+`Wasabi <https://wasabi.com>`__ is a low cost AWS S3 conformant object storage provider.
+Due to it's S3 conformance, Wasabi can be used as a storage provider for a restic repository.
+
+-  Create a Wasabi bucket using the `Wasabi Console <https://console.wasabisys.com>`__.
+-  Determine the correct Wasabi service URL for your bucket `here <https://wasabi-support.zendesk.com/hc/en-us/articles/360015106031-What-are-the-service-URLs-for-Wasabi-s-different-regions->`__.
+
+You must first setup the following environment variables with the
+credentials of your Wasabi account.
+
+.. code-block:: console
+
+    $ export AWS_ACCESS_KEY_ID=<YOUR-WASABI-ACCESS-KEY-ID>
+    $ export AWS_SECRET_ACCESS_KEY=<YOUR-WASABI-SECRET-ACCESS-KEY>
+
+Now you can easily initialize restic to use Wasabi as a backend with
+this command.
+
+.. code-block:: console
+
+    $ ./restic -r s3:https://<WASABI-SERVICE-URL>/<WASABI-BUCKET-NAME> init
+    enter password for new backend:
+    enter password again:
+    created restic backend xxxxxxxxxx at s3:https://<WASABI-SERVICE-URL>/<WASABI-BUCKET-NAME>
     Please note that knowledge of your password is required to access
     the repository. Losing your password means that your data is irrecoverably lost.
 

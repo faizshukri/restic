@@ -132,6 +132,23 @@ Now is a good time to run ``restic check`` to verify that all data
 is properly stored in the repository. You should run this command regularly
 to make sure the internal structure of the repository is free of errors.
 
+Dry Runs
+********
+
+You can perform a backup in dry run mode to see what would happen without
+modifying the repo.
+
+-  ``--dry-run``/``-n`` do not write anything, just print what would be done
+
+Combined with ``--verbose``, you can see a list of changes:
+
+.. code-block:: console
+
+    $ restic -r /srv/restic-repo backup ~/work --dry-run -vv | grep added
+    modified  /plan.txt, saved in 0.000s (9.110 KiB added)
+    modified  /archive.tar.gz, saved in 0.140s (25.542 MiB added)
+    Would be added to the repo: 25.551 MiB
+
 Excluding Files
 ***************
 
@@ -174,7 +191,7 @@ even if restic is passed a relative path to save.
 
 Environment-variables in exclude files are expanded with `os.ExpandEnv <https://golang.org/pkg/os/#ExpandEnv>`__,
 so ``/home/$USER/foo`` will be expanded to ``/home/bob/foo`` for the user ``bob``.
-To get a literal dollar sign, write ``$$`` to the file.
+To get a literal dollar sign, write ``$$`` to the file. Note that tilde (``~``) expansion does not work, please use the ``$HOME`` environment variable instead.
 
 Patterns need to match on complete path components. For example, the pattern ``foo``:
 
