@@ -1,0 +1,5 @@
+Enhancement: Stats command: Add filter by tag and path for latest snapshot
+
+We`ve added filtering by `--tag tagList` and by `--path path` for latest snapshot in `restic stats` command.
+
+https://github.com/restic/restic/issues/2858
