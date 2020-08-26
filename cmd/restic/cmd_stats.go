@@ -124,14 +124,10 @@ func runStats(gopts GlobalOptions, args []string) error {
 			return fmt.Errorf("error walking snapshot: %v", err)
 		}
 	} else {
-		// iterate every snapshot in the repo
-		err = repo.List(ctx, restic.SnapshotFile, func(snapshotID restic.ID, size int64) error {
-			snapshot, err := restic.LoadSnapshot(ctx, repo, snapshotID)
-			if err != nil {
-				return fmt.Errorf("Error loading snapshot %s: %v", snapshotID.Str(), err)
-			}
-			return statsWalkSnapshot(ctx, snapshot, repo, stats)
-		})
+		// iterate snapshots after filtered
+		for sn := range FindFilteredSnapshots(ctx, repo, snapshotByHosts, snapshotByTags, snapshotByPaths, args) {
+			statsWalkSnapshot(ctx, sn, repo, stats)
+		}
 	}
 	if err != nil {
 		return err
