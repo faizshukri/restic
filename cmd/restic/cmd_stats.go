@@ -15,7 +15,7 @@ import (
 )
 
 var cmdStats = &cobra.Command{
-	Use:   "stats [flags] [snapshot-ID]",
+	Use:   "stats [snapshotID] [flags]",
 	Short: "Scan the repository and show basic statistics",
 	Long: `
 The "stats" command walks one or all snapshots in a repository and
@@ -54,9 +54,9 @@ func init() {
 	cmdRoot.AddCommand(cmdStats)
 	f := cmdStats.Flags()
 	f.StringVar(&countMode, "mode", countModeRestoreSize, "counting mode: restore-size (default), files-by-contents, blobs-per-file, or raw-data")
-	f.StringArrayVarP(&snapshotByHosts, "host", "H", nil, "filter latest snapshot by this hostname (can be specified multiple times)")
-	f.Var(&snapshotByTags, "tag", "filter latest snapshot by this `taglist` (can be specified multiple times)")
-	f.StringArrayVar(&snapshotByPaths, "path", nil, "filter latest snapshot by this `path` (can be specified multiple times)")
+	f.StringArrayVarP(&snapshotByHosts, "host", "H", nil, "filter snapshots by this hostname (can be specified multiple times)")
+	f.Var(&snapshotByTags, "tag", "filter snapshots by this `taglist` (can be specified multiple times)")
+	f.StringArrayVar(&snapshotByPaths, "path", nil, "filter snapshots by this `path` (can be specified multiple times)")
 }
 
 func runStats(gopts GlobalOptions, args []string) error {
@@ -124,14 +124,10 @@ func runStats(gopts GlobalOptions, args []string) error {
 			return fmt.Errorf("error walking snapshot: %v", err)
 		}
 	} else {
-		// iterate every snapshot in the repo
-		err = repo.List(ctx, restic.SnapshotFile, func(snapshotID restic.ID, size int64) error {
-			snapshot, err := restic.LoadSnapshot(ctx, repo, snapshotID)
-			if err != nil {
-				return fmt.Errorf("Error loading snapshot %s: %v", snapshotID.Str(), err)
-			}
-			return statsWalkSnapshot(ctx, snapshot, repo, stats)
-		})
+		// iterate snapshots after filtered
+		for sn := range FindFilteredSnapshots(ctx, repo, snapshotByHosts, snapshotByTags, snapshotByPaths, args) {
+			statsWalkSnapshot(ctx, sn, repo, stats)
+		}
 	}
 	if err != nil {
 		return err
