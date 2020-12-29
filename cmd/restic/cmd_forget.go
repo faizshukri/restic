@@ -73,22 +73,28 @@ func init() {
 	f.Var(&forgetOptions.Tags, "tag", "only consider snapshots which include this `taglist` in the format `tag[,tag,...]` (can be specified multiple times)")
 
 	f.StringArrayVar(&forgetOptions.Paths, "path", nil, "only consider snapshots which include this (absolute) `path` (can be specified multiple times)")
-	f.BoolVarP(&forgetOptions.Compact, "compact", "c", false, "use compact format")
+	f.BoolVarP(&forgetOptions.Compact, "compact", "c", false, "use compact output format")
 
 	f.StringVarP(&forgetOptions.GroupBy, "group-by", "g", "host,paths", "string for grouping snapshots by host,paths,tags")
 	f.BoolVarP(&forgetOptions.DryRun, "dry-run", "n", false, "do not delete anything, just print what would be done")
 	f.BoolVar(&forgetOptions.Prune, "prune", false, "automatically run the 'prune' command if snapshots have been removed")
 
 	f.SortFlags = false
+	addPruneOptions(cmdForget)
 }
 
 func runForget(opts ForgetOptions, gopts GlobalOptions, args []string) error {
+	err := verifyPruneOptions(&pruneOptions)
+	if err != nil {
+		return err
+	}
+
 	repo, err := OpenRepository(gopts)
 	if err != nil {
 		return err
 	}
 
-	lock, err := lockRepoExclusive(repo)
+	lock, err := lockRepoExclusive(gopts.ctx, repo)
 	defer unlockRepo(lock)
 	if err != nil {
 		return err
@@ -204,8 +210,12 @@ func runForget(opts ForgetOptions, gopts GlobalOptions, args []string) error {
 		}
 	}
 
-	if len(removeSnIDs) > 0 && opts.Prune && !opts.DryRun {
-		return pruneRepository(gopts, repo)
+	if len(removeSnIDs) > 0 && opts.Prune {
+		if !gopts.JSON {
+			Verbosef("%d snapshots have been removed, running prune\n", len(removeSnIDs))
+		}
+		pruneOptions.DryRun = opts.DryRun
+		return runPruneWithRepo(pruneOptions, gopts, repo, removeSnIDs)
 	}
 
 	return nil

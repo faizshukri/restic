@@ -43,16 +43,17 @@ func init() {
 }
 
 func runInit(opts InitOptions, gopts GlobalOptions, args []string) error {
-	if gopts.Repo == "" {
-		return errors.Fatal("Please specify repository location (-r)")
-	}
-
 	chunkerPolynomial, err := maybeReadChunkerPolynomial(opts, gopts)
 	if err != nil {
 		return err
 	}
 
-	be, err := create(gopts.Repo, gopts.extended)
+	repo, err := ReadRepo(gopts)
+	if err != nil {
+		return err
+	}
+
+	be, err := create(repo, gopts.extended)
 	if err != nil {
 		return errors.Fatalf("create repository at %s failed: %v\n", location.StripPassword(gopts.Repo), err)
 	}

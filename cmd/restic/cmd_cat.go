@@ -42,10 +42,18 @@ func runCat(gopts GlobalOptions, args []string) error {
 		return err
 	}
 
-	lock, err := lockRepo(repo)
-	defer unlockRepo(lock)
-	if err != nil {
-		return err
+	if !gopts.NoLock {
+		lock, err := lockRepo(gopts.ctx, repo)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			err := unlockRepo(lock)
+			if err != nil {
+				Warnf("unlock repo failed: %v", err)
+			}
+		}()
 	}
 
 	tpe := args[0]
@@ -59,7 +67,7 @@ func runCat(gopts GlobalOptions, args []string) error {
 			}
 
 			// find snapshot id with prefix
-			id, err = restic.FindSnapshot(repo, args[1])
+			id, err = restic.FindSnapshot(gopts.ctx, repo, args[1])
 			if err != nil {
 				return errors.Fatalf("could not find snapshot: %v\n", err)
 			}
@@ -165,7 +173,8 @@ func runCat(gopts GlobalOptions, args []string) error {
 
 	case "blob":
 		for _, t := range []restic.BlobType{restic.DataBlob, restic.TreeBlob} {
-			if !repo.Index().Has(id, t) {
+			bh := restic.BlobHandle{ID: id, Type: t}
+			if !repo.Index().Has(bh) {
 				continue
 			}
 

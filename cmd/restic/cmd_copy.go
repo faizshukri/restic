@@ -14,12 +14,19 @@ var cmdCopy = &cobra.Command{
 	Use:   "copy [flags] [snapshotID ...]",
 	Short: "Copy snapshots from one repository to another",
 	Long: `
-The "copy" command copies one or more snapshots from one repository to another
-repository. Note that this will have to read (download) and write (upload) the
-entire snapshot(s) due to the different encryption keys on the source and
-destination, and that transferred files are not re-chunked, which may break
-their deduplication. This can be mitigated by the "--copy-chunker-params"
-option when initializing a new destination repository using the "init" command.
+The "copy" command copies one or more snapshots from one repository to another.
+
+NOTE: This process will have to both download (read) and upload (write) the
+entire snapshot(s) due to the different encryption keys used in the source and
+destination repositories. This /may incur higher bandwidth usage and costs/ than
+expected during normal backup runs.
+
+NOTE: The copying process does not re-chunk files, which may break deduplication
+between the files copied and files already stored in the destination repository.
+This means that copied files, which existed in both the source and destination
+repository, /may occupy up to twice their space/ in the destination repository.
+This can be mitigated by the "--copy-chunker-params" option when initializing a
+new destination repository using the "init" command.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runCopy(copyOptions, globalOptions, args)
@@ -65,13 +72,13 @@ func runCopy(opts CopyOptions, gopts GlobalOptions, args []string) error {
 		return err
 	}
 
-	srcLock, err := lockRepo(srcRepo)
+	srcLock, err := lockRepo(ctx, srcRepo)
 	defer unlockRepo(srcLock)
 	if err != nil {
 		return err
 	}
 
-	dstLock, err := lockRepo(dstRepo)
+	dstLock, err := lockRepo(ctx, dstRepo)
 	defer unlockRepo(dstLock)
 	if err != nil {
 		return err
@@ -190,7 +197,7 @@ func (t *treeCloner) copyTree(ctx context.Context, treeID restic.ID) error {
 	t.visitedTrees.Insert(treeID)
 
 	// Do we already have this tree blob?
-	if !t.dstRepo.Index().Has(treeID, restic.TreeBlob) {
+	if !t.dstRepo.Index().Has(restic.BlobHandle{ID: treeID, Type: restic.TreeBlob}) {
 		newTreeID, err := t.dstRepo.SaveTree(ctx, tree)
 		if err != nil {
 			return fmt.Errorf("SaveTree(%v) returned error %v", treeID.Str(), err)
@@ -213,7 +220,7 @@ func (t *treeCloner) copyTree(ctx context.Context, treeID restic.ID) error {
 		// Copy the blobs for this file.
 		for _, blobID := range entry.Content {
 			// Do we already have this data blob?
-			if t.dstRepo.Index().Has(blobID, restic.DataBlob) {
+			if t.dstRepo.Index().Has(restic.BlobHandle{ID: blobID, Type: restic.DataBlob}) {
 				continue
 			}
 			debug.Log("Copying blob %s\n", blobID.Str())

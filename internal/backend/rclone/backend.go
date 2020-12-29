@@ -267,6 +267,7 @@ func Open(cfg Config, lim limiter.Limiter) (*Backend, error) {
 
 	restBackend, err := rest.Open(restConfig, debug.RoundTripper(be.tr))
 	if err != nil {
+		_ = be.Close()
 		return nil, err
 	}
 
@@ -274,8 +275,8 @@ func Open(cfg Config, lim limiter.Limiter) (*Backend, error) {
 	return be, nil
 }
 
-// Create initializes a new restic repo with clone.
-func Create(cfg Config) (*Backend, error) {
+// Create initializes a new restic repo with rclone.
+func Create(ctx context.Context, cfg Config) (*Backend, error) {
 	be, err := newBackend(cfg, nil)
 	if err != nil {
 		return nil, err
@@ -289,11 +290,11 @@ func Create(cfg Config) (*Backend, error) {
 	}
 
 	restConfig := rest.Config{
-		Connections: 20,
+		Connections: cfg.Connections,
 		URL:         url,
 	}
 
-	restBackend, err := rest.Create(restConfig, debug.RoundTripper(be.tr))
+	restBackend, err := rest.Create(ctx, restConfig, debug.RoundTripper(be.tr))
 	if err != nil {
 		_ = be.Close()
 		return nil, err

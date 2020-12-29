@@ -273,6 +273,14 @@ func TestLoadJSONUnpacked(t *testing.T) {
 
 	rtest.Equals(t, sn.Hostname, sn2.Hostname)
 	rtest.Equals(t, sn.Username, sn2.Username)
+
+	var cf restic.Config
+
+	// load and check Config
+	err = repo.LoadJSONUnpacked(context.TODO(), restic.ConfigFile, id, &cf)
+	rtest.OK(t, err)
+
+	rtest.Equals(t, cf.ChunkerPolynomial, repository.TestChunkerPol)
 }
 
 var repoFixture = filepath.Join("testdata", "test-repo.tar.gz")
@@ -296,10 +304,9 @@ func BenchmarkLoadIndex(b *testing.B) {
 	for i := 0; i < 5000; i++ {
 		idx.Store(restic.PackedBlob{
 			Blob: restic.Blob{
-				Type:   restic.DataBlob,
-				Length: 1234,
-				ID:     restic.NewRandomID(),
-				Offset: 1235,
+				BlobHandle: restic.NewRandomBlobHandle(),
+				Length:     1234,
+				Offset:     1235,
 			},
 			PackID: restic.NewRandomID(),
 		})
